@@ -1,0 +1,42 @@
+{
+  "name": "Geweinet",
+  "version": "1.0.0",
+  "iflow_cli_path": "iflow",
+  "log_level": "info",
+  "log_file": "geweinet.log",
+  "max_concurrent_tasks": 10,
+  "task_timeout_seconds": 600,
+  "ipc_socket_path": "/tmp/geweinet.sock",
+  "agents": {
+    "assistant": {
+      "name": "Assistant",
+      "description": "General purpose assistant agent",
+      "working_directory": ".",
+      "prompt_file": "",
+      "timeout_seconds": 300,
+      "max_retries": 3,
+      "enabled": true,
+      "env_vars": {}
+    },
+    "code_reviewer": {
+      "name": "Code Reviewer",
+      "description": "Specialized agent for code review",
+      "working_directory": ".",
+      "prompt_file": "./prompts/code_reviewer.txt",
+      "timeout_seconds": 600,
+      "max_retries": 2,
+      "enabled": true,
+      "env_vars": {}
+    },
+    "architect": {
+      "name": "Architect",
+      "description": "System design and architecture agent",
+      "working_directory": ".",
+      "prompt_file": "./prompts/architect.txt",
+      "timeout_seconds": 900,
+      "max_retries": 2,
+      "enabled": true,
+      "env_vars": {}
+    }
+  }
+}

@@ -1,0 +1,25 @@
+[2026-03-10 18:51:05.507] [ INFO] [Geweinet] Initializing Geweinet v1.0.0
+[2026-03-10 18:51:05.507] [ INFO] [IFlowClient] iFlow CLI path set to: iflow
+[2026-03-10 18:51:09.934] [ INFO] [Geweinet] iFlow CLI version: 0.5.16
+[2026-03-10 18:51:09.934] [ INFO] [AgentManager] Registered agent: architect (Architect)
+[2026-03-10 18:51:09.934] [ INFO] [AgentManager] Registered agent: assistant (Assistant)
+[2026-03-10 18:51:09.934] [ INFO] [AgentManager] Registered agent: code_reviewer (Code Reviewer)
+[2026-03-10 18:51:09.934] [ INFO] [Geweinet] Registered 3 agents
+[2026-03-10 18:51:09.935] [ INFO] [TaskScheduler] TaskScheduler started with 10 workers
+[2026-03-10 18:51:09.935] [ INFO] [Router] Router started
+[2026-03-10 18:51:09.935] [ INFO] [IPCServer] IPC Server started at: /tmp/geweinet.sock
+[2026-03-10 18:51:09.935] [ INFO] [Geweinet] Geweinet platform initialized successfully
+[2026-03-10 18:51:09.935] [ INFO] [Geweinet] Geweinet platform running...
+[2026-03-10 18:51:09.935] [ INFO] [Geweinet] IPC socket: /tmp/geweinet.sock
+[2026-03-10 18:51:09.935] [ INFO] [Geweinet] Press Ctrl+C to stop
+[2026-03-10 18:51:22.409] [ INFO] [TaskScheduler] Task submitted: a27ebd9e-ebfd-4094-b1f8-b906c13b8a89 for agent: assistant
+[2026-03-10 18:51:22.409] [ INFO] [TaskScheduler] Executing task: a27ebd9e-ebfd-4094-b1f8-b906c13b8a89
+[2026-03-10 18:51:30.525] [ INFO] [TaskScheduler] Task completed: a27ebd9e-ebfd-4094-b1f8-b906c13b8a89
+[2026-03-10 18:51:30.525] [ INFO] [Geweinet] Task a27ebd9e-ebfd-4094-b1f8-b906c13b8a89 completed with status: completed
+[2026-03-10 18:51:53.666] [ INFO] [signal_handler] Received signal 15, shutting down...
+[2026-03-10 18:51:53.941] [ INFO] [Geweinet] Shutting down Geweinet...
+[2026-03-10 18:51:53.941] [ INFO] [IPCServer] IPC Server stopped
+[2026-03-10 18:51:53.942] [ INFO] [Router] Router stopped
+[2026-03-10 18:51:53.942] [ INFO] [TaskScheduler] TaskScheduler stopped
+[2026-03-10 18:51:53.942] [ INFO] [AgentManager] All agents cleared
+[2026-03-10 18:51:53.942] [ INFO] [Geweinet] Geweinet shutdown complete
