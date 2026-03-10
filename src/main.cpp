@@ -15,6 +15,13 @@
 #include <unistd.h>
 #include <pwd.h>
 #include <sstream>
+#include <cstring>
+
+// readline 支持 (条件编译)
+#ifdef HAVE_READLINE
+#include <readline/readline.h>
+#include <readline/history.h>
+#endif
 
 namespace geweinet {
 
@@ -352,16 +359,143 @@ void print_interactive_help() {
               << "  send <agent> <msg>  Send message to agent (sync)\n"
               << "  task <agent> <msg>  Submit async task to agent\n"
               << "  status <task_id>    Get task status\n"
-              << "  quit / exit         Exit program\n\n";
+              << "  wait <task_id>      Wait for task to complete\n"
+              << "  clear               Clear screen\n"
+              << "  quit / exit         Exit program\n\n"
+#ifdef HAVE_READLINE
+              << "Line Editing Shortcuts:\n"
+              << "  Ctrl+A / Home       Move to beginning of line\n"
+              << "  Ctrl+E / End        Move to end of line\n"
+              << "  Ctrl+B / Left       Move back one character\n"
+              << "  Ctrl+F / Right      Move forward one character\n"
+              << "  Ctrl+U              Delete from cursor to beginning\n"
+              << "  Ctrl+K              Delete from cursor to end\n"
+              << "  Ctrl+W              Delete word before cursor\n"
+              << "  Up/Down             Browse command history\n"
+              << "  Tab                 Auto-complete commands and agent IDs\n\n"
+#endif
+              << "Note: Quotes are optional for messages (supports both \" and \")\n\n";
+}
+
+#ifdef HAVE_READLINE
+// readline 补全回调
+char* command_generator(const char* text, int state);
+char* agent_id_generator(const char* text, int state);
+char** geweinet_completion(const char* text, int start, int end);
+
+// 可用命令列表
+const char* commands[] = {
+    "help", "list", "tasks", "send", "task", "status", "wait", "clear", "quit", "exit", nullptr
+};
+
+// Agent ID 补全生成器
+char* agent_id_generator(const char* text, int state) {
+    static std::vector<std::string> agent_ids;
+    static size_t agent_index;
+    
+    if (state == 0) {
+        agent_ids.clear();
+        auto agents = geweinet::AgentManager::instance().get_all_agents();
+        for (const auto& agent : agents) {
+            if (agent->id().find(text) == 0) {
+                agent_ids.push_back(agent->id());
+            }
+        }
+        agent_index = 0;
+    }
+    
+    if (agent_index < agent_ids.size()) {
+        return strdup(agent_ids[agent_index++].c_str());
+    }
+    
+    return nullptr;
+}
+
+char** geweinet_completion(const char* text, int start, int end) {
+    (void)end;  // 未使用
+    rl_attempted_completion_over = 1;
+    
+    // 只在行首补全命令
+    if (start == 0) {
+        return rl_completion_matches(text, command_generator);
+    }
+    
+    // 对于 send/task/status/wait 命令，补全 agent ID
+    std::string line(rl_line_buffer);
+    if (line.find("send ") == 0 || line.find("task ") == 0 || 
+        line.find("status ") == 0 || line.find("wait ") == 0) {
+        return rl_completion_matches(text, agent_id_generator);
+    }
+    
+    return nullptr;
+}
+
+char* command_generator(const char* text, int state) {
+    static int list_index, len;
+    const char* name;
+    
+    if (state == 0) {
+        list_index = 0;
+        len = strlen(text);
+    }
+    
+    while ((name = commands[list_index++])) {
+        if (strncmp(name, text, len) == 0) {
+            return strdup(name);
+        }
+    }
+    
+    return nullptr;
+}
+#endif
+
+// 读取一行输入 (使用 readline 或 fallback)
+std::string read_input_line(const char* prompt) {
+#ifdef HAVE_READLINE
+    char* line_cstr = readline(prompt);
+    if (!line_cstr) {
+        return "";  // EOF
+    }
+    std::string line(line_cstr);
+    free(line_cstr);
+    return line;
+#else
+    std::string line;
+    std::cout << prompt << std::flush;
+    if (!std::getline(std::cin, line)) {
+        return "";
+    }
+    return line;
+#endif
+}
+
+// 添加到历史记录
+void add_input_to_history(const std::string& line) {
+#ifdef HAVE_READLINE
+    if (!line.empty()) {
+        add_history(line.c_str());
+    }
+#endif
 }
 
 void run_interactive(geweinet::GeweinetPlatform& platform) {
+    (void)platform;  // 未使用
+    
+#ifdef HAVE_READLINE
+    // 设置 readline 补全函数
+    rl_attempted_completion_function = geweinet_completion;
+    // 设置历史文件
+    std::string history_file = geweinet::get_home_dir() + "/.geweinet_history";
+    read_history(history_file.c_str());
+#endif
+    
     std::string line;
     
     while (geweinet::g_running) {
-        std::cout << "geweinet> " << std::flush;
+        line = read_input_line("geweinet> ");
         
-        if (!std::getline(std::cin, line)) {
+        // 检查 EOF
+        if (std::cin.eof()) {
             break;
         }
         
@@ -370,6 +504,9 @@ void run_interactive(geweinet::GeweinetPlatform& platform) {
         line.erase(line.find_last_not_of(" \t\n\r") + 1);
         
         if (line.empty()) continue;
+        
+        // 添加到历史
+        add_input_to_history(line);
         
         // 解析命令
         std::istringstream iss(line);
@@ -406,6 +543,13 @@ void run_interactive(geweinet::GeweinetPlatform& platform) {
             std::getline(iss, content);
             content.erase(0, content.find_first_not_of(" \t"));
             
+            // 去除引号（支持中英文引号）
+            if ((content.front() == '"' && content.back() == '"') ||
+                (content.front() == '"' && content.back() == '"') ||
+                (content.front() == '\'' && content.back() == '\'')) {
+                content = content.substr(1, content.size() - 2);
+            }
+            
             if (agent_id.empty() || content.empty()) {
                 std::cout << "Usage: send <agent_id> <message>\n";
                 continue;
@@ -417,7 +561,9 @@ void run_interactive(geweinet::GeweinetPlatform& platform) {
                 continue;
             }
             
-            std::cout << "Sending to " << agent_id << "...\n";
+            std::cout << "Sending to " << agent_id << "...\n" << std::flush;
+            std::cout << "Message: " << content << "\n" << std::flush;
+            std::cout << "Waiting for response...\n" << std::flush;
             
             geweinet::Message msg;
             msg.content = content;
@@ -425,17 +571,26 @@ void run_interactive(geweinet::GeweinetPlatform& platform) {
             
             auto result = geweinet::IFlowClient::instance().send_message(agent_id, msg, agent->config());
             
+            std::cout << "\n--- Response ---\n";
             if (result.success) {
-                std::cout << "\n" << result.stdout_output << "\n";
+                std::cout << result.stdout_output << "\n";
             } else {
                 std::cout << "Error: " << (result.error.empty() ? result.stderr_output : result.error) << "\n";
             }
+            std::cout << "----------------\n" << std::flush;
         }
         else if (cmd == "task") {
             std::string agent_id, content;
             iss >> agent_id;
             std::getline(iss, content);
             content.erase(0, content.find_first_not_of(" \t"));
+            
+            // 去除引号（支持中英文引号）
+            if ((content.front() == '"' && content.back() == '"') ||
+                (content.front() == '"' && content.back() == '"') ||
+                (content.front() == '\'' && content.back() == '\'')) {
+                content = content.substr(1, content.size() - 2);
+            }
             
             if (agent_id.empty() || content.empty()) {
                 std::cout << "Usage: task <agent_id> <input>\n";
@@ -444,6 +599,7 @@ void run_interactive(geweinet::GeweinetPlatform& platform) {
             
             std::string task_id = geweinet::TaskScheduler::instance().submit_task(agent_id, content);
             std::cout << "Task submitted: " << task_id << "\n";
+            std::cout << "Use 'status " << task_id << "' to check result.\n";
         }
         else if (cmd == "status") {
             std::string task_id;
@@ -455,21 +611,77 @@ void run_interactive(geweinet::GeweinetPlatform& platform) {
                 continue;
             }
             
-            std::cout << "\nTask: " << task->id << "\n"
+            std::cout << "\n=== Task Status ===\n"
+                      << "ID: " << task->id << "\n"
                       << "Status: " << geweinet::task_status_to_string(task->status) << "\n"
-                      << "Agent: " << task->agent_id << "\n";
+                      << "Agent: " << task->agent_id << "\n"
+                      << "Retries: " << task->retry_count << "\n";
             
             if (task->output) {
-                std::cout << "Output:\n" << *task->output << "\n";
+                std::cout << "\n--- Output ---\n" << *task->output << "\n";
             }
             if (task->error) {
-                std::cout << "Error: " << *task->error << "\n";
+                std::cout << "\n--- Error ---\n" << *task->error << "\n";
             }
+            std::cout << "================\n" << std::flush;
+        }
+        else if (cmd == "wait") {
+            std::string task_id;
+            iss >> task_id;
+            
+            auto task = geweinet::TaskScheduler::instance().get_task(task_id);
+            if (!task) {
+                std::cout << "Task not found: " << task_id << "\n";
+                continue;
+            }
+            
+            std::cout << "Waiting for task " << task_id.substr(0, 8) << "...\n" << std::flush;
+            
+            // 轮询等待任务完成
+            int timeout = 300; // 5分钟超时
+            int elapsed = 0;
+            while (task->status == geweinet::TaskStatus::Pending || 
+                   task->status == geweinet::TaskStatus::Running) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                elapsed++;
+                if (elapsed % 5 == 0) {
+                    std::cout << "." << std::flush;
+                }
+                if (elapsed >= timeout) {
+                    std::cout << "\nTimeout waiting for task.\n";
+                    break;
+                }
+                task = geweinet::TaskScheduler::instance().get_task(task_id);
+                if (!task) break;
+            }
+            
             std::cout << "\n";
+            if (task) {
+                std::cout << "=== Task Completed ===\n"
+                          << "Status: " << geweinet::task_status_to_string(task->status) << "\n";
+                if (task->output) {
+                    std::cout << "\n--- Output ---\n" << *task->output << "\n";
+                }
+                if (task->error) {
+                    std::cout << "\n--- Error ---\n" << *task->error << "\n";
+                }
+                std::cout << "====================\n" << std::flush;
+            }
         }
         else if (cmd == "quit" || cmd == "exit") {
             std::cout << "Goodbye!\n";
+#ifdef HAVE_READLINE
+            // 保存历史
+            write_history(history_file.c_str());
+#endif
             geweinet::g_running = false;
+        }
+        else if (cmd == "clear") {
+#ifdef HAVE_READLINE
+            rl_clear_screen(0, 0);
+#else
+            std::cout << "\033[2J\033[H" << std::flush;
+#endif
         }
         else {
             std::cout << "Unknown command: " << cmd << ". Type 'help' for commands.\n";

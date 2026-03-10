@@ -57,6 +57,7 @@ struct AgentConfig {
     std::string description;            // Agent 描述
     std::string working_directory;      // 工作目录
     std::string prompt_file;            // Prompt 文件路径
+    std::string model;                  // 使用的模型 (如 glm-4, gpt-4 等)
     std::map<std::string, std::string> env_vars;  // 环境变量
     int timeout_seconds = 300;          // 超时时间
     int max_retries = 3;                // 最大重试次数

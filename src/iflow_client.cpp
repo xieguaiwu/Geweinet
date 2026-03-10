@@ -47,14 +47,15 @@ IFlowResult IFlowClient::execute(
     const std::string& prompt,
     const std::string& working_dir,
     const std::map<std::string, std::string>& env_vars,
-    int timeout_ms
+    int timeout_ms,
+    const std::string& model
 ) {
     IFlowResult result;
     
     LOG_COMPONENT_DEBUG("Executing iFlow with prompt: " + prompt.substr(0, 100) + "...", "IFlowClient");
     
     // 构建命令
-    std::string command = build_command(prompt, working_dir, env_vars);
+    std::string command = build_command(prompt, working_dir, env_vars, model);
     
     // 创建管道
     int stdout_pipe[2];
@@ -180,10 +181,11 @@ void IFlowClient::execute_async(
     const std::string& working_dir,
     const std::map<std::string, std::string>& env_vars,
     ResultCallback callback,
-    int timeout_ms
+    int timeout_ms,
+    const std::string& model
 ) {
-    std::thread([this, prompt, working_dir, env_vars, callback, timeout_ms]() {
-        auto result = execute(prompt, working_dir, env_vars, timeout_ms);
+    std::thread([this, prompt, working_dir, env_vars, callback, timeout_ms, model]() {
+        auto result = execute(prompt, working_dir, env_vars, timeout_ms, model);
         if (callback) {
             callback(result);
         }
@@ -198,7 +200,8 @@ IFlowResult IFlowClient::execute_with_agent(
         prompt,
         agent_config.working_directory,
         agent_config.env_vars,
-        agent_config.timeout_seconds * 1000
+        agent_config.timeout_seconds * 1000,
+        agent_config.model
     );
 }
 
@@ -282,7 +285,8 @@ static std::string shell_escape(const std::string& str) {
 std::string IFlowClient::build_command(
     const std::string& prompt,
     const std::string& working_dir,
-    const std::map<std::string, std::string>& env_vars
+    const std::map<std::string, std::string>& env_vars,
+    const std::string& model
 ) const {
     std::string cmd;
     
@@ -301,8 +305,16 @@ std::string IFlowClient::build_command(
         }
     }
     
-    // 构建 iFlow 命令 (使用 -p 参数)
-    cmd += cli_path_ + " -p $'";
+    // 构建 iFlow 命令
+    cmd += cli_path_;
+    
+    // 添加 model 参数（如果指定）
+    if (!model.empty()) {
+        cmd += " -m '" + shell_escape(model) + "'";
+    }
+    
+    // 添加 prompt 参数
+    cmd += " -p $'";
     
     // 转义 prompt 中的特殊字符
     cmd += shell_escape(prompt) + "'";

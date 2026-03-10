@@ -13,6 +13,15 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 # 查找依赖
 find_package(Threads REQUIRED)
 
+# readline 库 (用于交互式命令行编辑)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(READLINE readline)
+if(READLINE_FOUND)
+    message(STATUS "Found readline: ${READLINE_LIBRARIES}")
+else()
+    message(WARNING "readline not found, interactive mode will have limited editing support")
+endif()
+
 # nlohmann_json (Header-only, 通过 FetchContent)
 include(FetchContent)
 FetchContent_Declare(
@@ -45,6 +54,13 @@ target_link_libraries(geweinet
     Threads::Threads
     nlohmann_json::nlohmann_json
 )
+
+# 添加 readline 链接
+if(READLINE_FOUND)
+    target_include_directories(geweinet PRIVATE ${READLINE_INCLUDE_DIRS})
+    target_link_libraries(geweinet ${READLINE_LIBRARIES})
+    target_compile_definitions(geweinet PRIVATE HAVE_READLINE=1)
+endif()
 
 # 测试 (可选)
 option(BUILD_TESTS "Build tests" OFF)

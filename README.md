@@ -56,6 +56,7 @@ Geweinet searches for configuration files in the following order:
       "description": "General purpose assistant agent",
       "working_directory": ".",
       "prompt_file": "",
+      "model": "",
       "timeout_seconds": 300,
       "max_retries": 3,
       "enabled": true,
@@ -66,6 +67,7 @@ Geweinet searches for configuration files in the following order:
       "description": "Specialized agent for code review",
       "working_directory": ".",
       "prompt_file": "./prompts/code_reviewer.txt",
+      "model": "glm-4",
       "timeout_seconds": 600,
       "max_retries": 2,
       "enabled": true,
@@ -96,6 +98,7 @@ Geweinet searches for configuration files in the following order:
 | `description` | string | "" | Agent description |
 | `working_directory` | string | "." | Working directory for agent |
 | `prompt_file` | string | "" | System prompt file path |
+| `model` | string | "" | AI model to use (e.g., "glm-4", "gpt-4"). Empty means default model |
 | `timeout_seconds` | int | 300 | Agent operation timeout |
 | `max_retries` | int | 3 | Maximum retry attempts |
 | `enabled` | bool | true | Whether agent is enabled |

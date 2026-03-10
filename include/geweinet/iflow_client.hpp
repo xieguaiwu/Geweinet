@@ -49,12 +49,14 @@ public:
      * @param working_dir 工作目录
      * @param env_vars 环境变量
      * @param timeout_ms 超时时间（毫秒）
+     * @param model 指定模型（可选）
      */
     IFlowResult execute(
         const std::string& prompt,
         const std::string& working_dir = ".",
         const std::map<std::string, std::string>& env_vars = {},
-        int timeout_ms = 300000
+        int timeout_ms = 300000,
+        const std::string& model = ""
     );
     
     /**
@@ -65,7 +67,8 @@ public:
         const std::string& working_dir,
         const std::map<std::string, std::string>& env_vars,
         ResultCallback callback,
-        int timeout_ms = 300000
+        int timeout_ms = 300000,
+        const std::string& model = ""
     );
     
     /**
@@ -105,7 +108,8 @@ private:
     std::string build_command(
         const std::string& prompt,
         const std::string& working_dir,
-        const std::map<std::string, std::string>& env_vars
+        const std::map<std::string, std::string>& env_vars,
+        const std::string& model = ""
     ) const;
     
     std::string cli_path_ = "iflow";

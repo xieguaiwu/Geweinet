@@ -90,6 +90,7 @@ AgentConfig AgentConfig::from_json(const json& j) {
     config.description = j.value("description", "");
     config.working_directory = j.value("working_directory", ".");
     config.prompt_file = j.value("prompt_file", "");
+    config.model = j.value("model", "");  // 可选，为空则使用默认模型
     config.timeout_seconds = j.value("timeout_seconds", 300);
     config.max_retries = j.value("max_retries", 3);
     config.enabled = j.value("enabled", true);
@@ -110,6 +111,7 @@ json AgentConfig::to_json() const {
     j["description"] = description;
     j["working_directory"] = working_directory;
     j["prompt_file"] = prompt_file;
+    j["model"] = model;
     j["timeout_seconds"] = timeout_seconds;
     j["max_retries"] = max_retries;
     j["enabled"] = enabled;
