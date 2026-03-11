@@ -30,6 +30,7 @@ struct IFlowResult {
 class IFlowClient {
 public:
     using ResultCallback = std::function<void(const IFlowResult&)>;
+    using StreamCallback = std::function<void(const std::string&, bool)>; // (output, is_error)
     
     static IFlowClient& instance();
     
@@ -50,13 +51,15 @@ public:
      * @param env_vars 环境变量
      * @param timeout_ms 超时时间（毫秒）
      * @param model 指定模型（可选）
+     * @param stream_callback 流式输出回调（可选）
      */
     IFlowResult execute(
         const std::string& prompt,
         const std::string& working_dir = ".",
         const std::map<std::string, std::string>& env_vars = {},
         int timeout_ms = 300000,
-        const std::string& model = ""
+        const std::string& model = "",
+        StreamCallback stream_callback = nullptr
     );
     
     /**
@@ -68,7 +71,8 @@ public:
         const std::map<std::string, std::string>& env_vars,
         ResultCallback callback,
         int timeout_ms = 300000,
-        const std::string& model = ""
+        const std::string& model = "",
+        StreamCallback stream_callback = nullptr
     );
     
     /**
@@ -76,7 +80,8 @@ public:
      */
     IFlowResult execute_with_agent(
         const std::string& prompt,
-        const AgentConfig& agent_config
+        const AgentConfig& agent_config,
+        StreamCallback stream_callback = nullptr
     );
     
     /**
@@ -85,7 +90,8 @@ public:
     IFlowResult send_message(
         const std::string& agent_id,
         const Message& message,
-        const AgentConfig& agent_config
+        const AgentConfig& agent_config,
+        StreamCallback stream_callback = nullptr
     );
     
     /**

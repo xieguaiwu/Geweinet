@@ -40,6 +40,90 @@
       "max_retries": 2,
       "enabled": true,
       "env_vars": {}
+    },
+    "developer": {
+      "name": "Developer",
+      "description": "Code implementation agent",
+      "working_directory": ".",
+      "prompt_file": "./prompts/developer.txt",
+      "model": "glm-4",
+      "timeout_seconds": 600,
+      "max_retries": 2,
+      "enabled": true,
+      "env_vars": {}
+    },
+    "tester": {
+      "name": "Tester",
+      "description": "Testing and QA agent",
+      "working_directory": ".",
+      "prompt_file": "./prompts/tester.txt",
+      "model": "glm-4",
+      "timeout_seconds": 600,
+      "max_retries": 2,
+      "enabled": true,
+      "env_vars": {}
+    }
+  },
+  "teams": {
+    "dev_team": {
+      "name": "Development Team",
+      "description": "A team for full software development lifecycle",
+      "leader_id": "architect",
+      "coordination_strategy": "sequential",
+      "enabled": true,
+      "members": [
+        {
+          "agent_id": "architect",
+          "role": "leader",
+          "specialty": "architecture",
+          "priority": 1
+        },
+        {
+          "agent_id": "developer",
+          "role": "worker",
+          "specialty": "implementation",
+          "priority": 2
+        },
+        {
+          "agent_id": "code_reviewer",
+          "role": "reviewer",
+          "specialty": "review",
+          "priority": 3
+        },
+        {
+          "agent_id": "tester",
+          "role": "worker",
+          "specialty": "testing",
+          "priority": 4
+        }
+      ]
+    },
+    "analysis_team": {
+      "name": "Analysis Team",
+      "description": "A team for code analysis and review tasks",
+      "leader_id": "code_reviewer",
+      "coordination_strategy": "parallel",
+      "enabled": true,
+      "members": [
+        {
+          "agent_id": "code_reviewer",
+          "role": "leader",
+          "specialty": "review",
+          "priority": 1
+        },
+        {
+          "agent_id": "architect",
+          "role": "specialist",
+          "specialty": "architecture",
+          "priority": 2
+        },
+        {
+          "agent_id": "assistant",
+          "role": "worker",
+          "specialty": "general",
+          "priority": 3
+        }
+      ]
     }
   }
 }

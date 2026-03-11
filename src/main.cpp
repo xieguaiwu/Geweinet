@@ -6,6 +6,7 @@
 #include "geweinet/iflow_client.hpp"
 #include "geweinet/task_scheduler.hpp"
 #include "geweinet/ipc.hpp"
+#include "geweinet/team_orchestrator.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -128,6 +129,18 @@ public:
         
         LOG_COMPONENT_INFO("Registered " + std::to_string(agent_manager.agent_count()) + " agents", "Geweinet");
         
+        // 注册团队
+        auto& orchestrator = TeamOrchestrator::instance();
+        for (const auto& [id, team_config] : config.teams) {
+            if (!orchestrator.register_team(team_config)) {
+                LOG_COMPONENT_WARNING("Failed to register team: " + id, "Geweinet");
+            }
+        }
+        LOG_COMPONENT_INFO("Registered " + std::to_string(orchestrator.team_count()) + " teams", "Geweinet");
+        
+        // 启动团队协调器
+        orchestrator.start();
+        
         // 启动任务调度器
         auto& scheduler = TaskScheduler::instance();
         scheduler.set_max_concurrent(config.max_concurrent_tasks);
@@ -169,6 +182,9 @@ public:
     
     void shutdown() {
         LOG_COMPONENT_INFO("Shutting down Geweinet...", "Geweinet");
+        
+        // 停止团队协调器
+        TeamOrchestrator::instance().stop();
         
         // 停止 IPC
         IPCServer::instance().stop();
@@ -355,9 +371,11 @@ void print_interactive_help() {
     std::cout << "\nGeweinet Interactive Commands:\n"
               << "  help                Show this help\n"
               << "  list                List all agents\n"
+              << "  teams               List all teams\n"
               << "  tasks               List all tasks\n"
               << "  send <agent> <msg>  Send message to agent (sync)\n"
               << "  task <agent> <msg>  Submit async task to agent\n"
+              << "  collab <team> <msg> Submit collaboration task to team\n"
               << "  status <task_id>    Get task status\n"
               << "  wait <task_id>      Wait for task to complete\n"
               << "  clear               Clear screen\n"
@@ -374,7 +392,8 @@ void print_interactive_help() {
               << "  Up/Down             Browse command history\n"
               << "  Tab                 Auto-complete commands and agent IDs\n\n"
 #endif
-              << "Note: Quotes are optional for messages (supports both \" and \")\n\n";
+              << "Note: Quotes are optional for messages (supports both \" and \")\n"
+              << "Team tasks use multiple agents working together.\n\n";
 }
 
 #ifdef HAVE_READLINE
@@ -385,7 +404,8 @@ char** geweinet_completion(const char* text, int start, int end);
 
 // 可用命令列表
 const char* commands[] = {
-    "help", "list", "tasks", "send", "task", "status", "wait", "clear", "quit", "exit", nullptr
+    "help", "list", "tasks", "teams", "send", "task", "collab", 
+    "status", "wait", "clear", "quit", "exit", nullptr
 };
 
 // Agent ID 补全生成器
@@ -537,6 +557,53 @@ void run_interactive(geweinet::GeweinetPlatform& platform) {
             }
             std::cout << "\n";
         }
+        else if (cmd == "teams") {
+            auto teams = geweinet::TeamOrchestrator::instance().get_all_teams();
+            std::cout << "\nTeams (" << teams.size() << "):\n";
+            for (const auto& team : teams) {
+                std::cout << "  - " << team.id << " (" << team.name << ")"
+                          << " [leader: " << team.leader_id << "]"
+                          << " [members: " << team.members.size() << "]"
+                          << " [strategy: " << team.coordination_strategy << "]"
+                          << (team.enabled ? "" : " (disabled)") << "\n";
+            }
+            std::cout << "\n";
+        }
+        else if (cmd == "collab") {
+            std::string team_id, content;
+            iss >> team_id;
+            std::getline(iss, content);
+            content.erase(0, content.find_first_not_of(" \t"));
+            
+            // 去除引号
+            if (content.size() >= 2) {
+                if ((content.front() == '"' && content.back() == '"') ||
+                    (content.front() == '\'' && content.back() == '\'')) {
+                    content = content.substr(1, content.size() - 2);
+                }
+            }
+            
+            if (team_id.empty() || content.empty()) {
+                std::cout << "Usage: collab <team_id> <input>\n";
+                continue;
+            }
+            
+            auto team = geweinet::TeamOrchestrator::instance().get_team(team_id);
+            if (!team) {
+                std::cout << "Error: Team not found: " << team_id << "\n";
+                continue;
+            }
+            
+            std::string task_id = geweinet::TeamOrchestrator::instance().submit_collab_task(team_id, content);
+            if (task_id.empty()) {
+                std::cout << "Error: Failed to submit collaboration task\n";
+                continue;
+            }
+            
+            std::cout << "Collaboration task submitted: " << task_id << "\n";
+            std::cout << "Team: " << team->name << " (" << team->members.size() << " agents)\n";
+            std::cout << "Use 'status " << task_id << "' to check result.\n";
+        }
         else if (cmd == "send") {
             std::string agent_id, content;
             iss >> agent_id;
@@ -605,25 +672,60 @@ void run_interactive(geweinet::GeweinetPlatform& platform) {
             std::string task_id;
             iss >> task_id;
             
+            // 先尝试查找普通任务
             auto task = geweinet::TaskScheduler::instance().get_task(task_id);
-            if (!task) {
-                std::cout << "Task not found: " << task_id << "\n";
+            if (task) {
+                std::cout << "\n=== Task Status ===\n"
+                          << "ID: " << task->id << "\n"
+                          << "Status: " << geweinet::task_status_to_string(task->status) << "\n"
+                          << "Agent: " << task->agent_id << "\n"
+                          << "Retries: " << task->retry_count << "\n";
+                
+                if (task->output) {
+                    std::cout << "\n--- Output ---\n" << *task->output << "\n";
+                }
+                if (task->error) {
+                    std::cout << "\n--- Error ---\n" << *task->error << "\n";
+                }
+                std::cout << "================\n" << std::flush;
                 continue;
             }
             
-            std::cout << "\n=== Task Status ===\n"
-                      << "ID: " << task->id << "\n"
-                      << "Status: " << geweinet::task_status_to_string(task->status) << "\n"
-                      << "Agent: " << task->agent_id << "\n"
-                      << "Retries: " << task->retry_count << "\n";
+            // 尝试查找协作任务
+            auto collab_task = geweinet::TeamOrchestrator::instance().get_collab_task(task_id);
+            if (collab_task) {
+                std::cout << "\n=== Collaboration Task Status ===\n"
+                          << "ID: " << collab_task->id << "\n"
+                          << "Team: " << collab_task->team_id << "\n"
+                          << "Status: " << geweinet::collab_task_status_to_string(collab_task->status) << "\n"
+                          << "Subtasks: " << collab_task->completed_count() << "/" 
+                          << collab_task->subtasks.size() << " completed\n";
+                
+                // 显示子任务状态
+                if (!collab_task->subtasks.empty()) {
+                    std::cout << "\n--- Subtasks ---\n";
+                    for (const auto& st : collab_task->subtasks) {
+                        std::cout << "  " << st.id.substr(0, 8) << " [" 
+                                  << geweinet::subtask_status_to_string(st.status) << "] "
+                                  << "agent: " << st.assigned_agent;
+                        if (!st.description.empty()) {
+                            std::cout << " - " << st.description.substr(0, 30);
+                        }
+                        std::cout << "\n";
+                    }
+                }
+                
+                if (collab_task->final_output) {
+                    std::cout << "\n--- Final Output ---\n" << *collab_task->final_output << "\n";
+                }
+                if (collab_task->error) {
+                    std::cout << "\n--- Error ---\n" << *collab_task->error << "\n";
+                }
+                std::cout << "====================\n" << std::flush;
+                continue;
+            }
             
-            if (task->output) {
-                std::cout << "\n--- Output ---\n" << *task->output << "\n";
-            }
-            if (task->error) {
-                std::cout << "\n--- Error ---\n" << *task->error << "\n";
-            }
-            std::cout << "================\n" << std::flush;
+            std::cout << "Task not found: " << task_id << "\n";
         }
         else if (cmd == "wait") {
             std::string task_id;

@@ -45,6 +45,7 @@ set(SOURCES
     src/iflow_client.cpp
     src/task_scheduler.cpp
     src/ipc.cpp
+    src/team_orchestrator.cpp
 )
 
 # 可执行文件
