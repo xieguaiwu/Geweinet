@@ -324,8 +324,8 @@ std::string IFlowClient::build_command(
     
     cmd += cli_path_;
     
-    // 使用 -c 选项保持会话上下文
-    
+    // 使用 -y (YOLO) 模式自动接受所有操作，确保在非交互模式下能执行文件操作
+    cmd += " -y";
     
     if (!model.empty()) {
         cmd += " -m '" + shell_escape(model) + "'";

@@ -611,9 +611,10 @@ void run_interactive(geweinet::GeweinetPlatform& platform) {
             content.erase(0, content.find_first_not_of(" \t"));
             
             // 去除引号（支持中英文引号）
-            if ((content.front() == '"' && content.back() == '"') ||
-                (content.front() == '"' && content.back() == '"') ||
-                (content.front() == '\'' && content.back() == '\'')) {
+            if (content.size() >= 2 &&
+                ((content.front() == '"' && content.back() == '"') ||
+                 (content.front() == '"' && content.back() == '"') ||
+                 (content.front() == '\'' && content.back() == '\''))) {
                 content = content.substr(1, content.size() - 2);
             }
             
@@ -653,9 +654,10 @@ void run_interactive(geweinet::GeweinetPlatform& platform) {
             content.erase(0, content.find_first_not_of(" \t"));
             
             // 去除引号（支持中英文引号）
-            if ((content.front() == '"' && content.back() == '"') ||
-                (content.front() == '"' && content.back() == '"') ||
-                (content.front() == '\'' && content.back() == '\'')) {
+            if (content.size() >= 2 &&
+                ((content.front() == '"' && content.back() == '"') ||
+                 (content.front() == '"' && content.back() == '"') ||
+                 (content.front() == '\'' && content.back() == '\''))) {
                 content = content.substr(1, content.size() - 2);
             }
             
