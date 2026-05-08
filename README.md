@@ -1,6 +1,6 @@
-# Geweinet
+# Geweinet (R.I.P iFlow-CLI)
 
-A multi-agent coordination platform written in C++ that leverages iFlow-CLI to orchestrate multiple AI agents.
+A multi-agent coordination platform written in C++ that leverages iFlow-CLI to orchestrate multiple AI agents. Now abandoned due to the end of support of iFlow-CLI.
 
 ## Overview
 
